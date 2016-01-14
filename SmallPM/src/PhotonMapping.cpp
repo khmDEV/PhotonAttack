@@ -16,6 +16,10 @@ In no event shall copyright holders be liable for any damage.
 #include "Intersection.h"
 #include "Ray.h"
 #include "BSDF.h"
+#define _USE_MATH_DEFINES
+#include "math.h"
+
+
 
 //*********************************************************************
 // Compute the photons by tracing the Ray 'r' from the light source
@@ -50,8 +54,10 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 	bool is_caustic_particle = false;
 
 	//Iterate the path
+	int i = 0;
 	while(1)
 	{
+		
 		// Throw ray and update current_it
 		Intersection it;
 		world->first_intersection(photon_ray, it);
@@ -59,8 +65,10 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 		if( !it.did_hit() )
 			break;
 
+		//cout << it.intersected()->material()->is_delta() << endl;
+
 		//Check if has hit a delta material...
-		if( it.intersected()->material()->is_delta() )
+		if (it.intersected()->material()->is_delta())
 		{
 			// If delta material, then is caustic...
 			// Don't store the photon!
@@ -68,9 +76,11 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 		}
 		else if (photon_ray.get_level() > 0 || direct)
 		{
+			
+
 			//If non-delta material, store the photon!
 			if( is_caustic_particle )	
-			{				
+			{			
 				//If caustic particle, store in caustics
 				if( caustic_photons.size() < m_nb_caustic_photons )
 					caustic_photons.push_back( Photon(it.get_position(), photon_ray.get_direction(), energy ));
@@ -118,6 +128,22 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 	return true;
 }
 
+Vector3 rejectingSampling(Vector3 foco){
+	Vector3 ramdomVector();
+	double x = (2 * (double)rand() / RAND_MAX) - 1;
+	double y = (2 * (double)rand() / RAND_MAX) - 1;
+	double z = (2 * (double)rand() / RAND_MAX) - 1;
+
+	Vector3 smp(x, y, z);
+	if (smp.length() <= 1){
+		return smp;
+	}
+	else{
+		return rejectingSampling(foco);
+
+	}
+}
+
 //*********************************************************************
 // TODO: Implement the preprocess step of photon mapping,
 // where the photons are traced through the scene. To do it,
@@ -134,6 +160,42 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 //---------------------------------------------------------------------
 void PhotonMapping::preprocess()
 {
+	Vector3 center = world->light(0).get_position(); //Foco de luz
+	//world->light(0).get_incoming_direction();
+
+	std::list<Photon> global_photons;
+	std::list<Photon> caustic_photons;
+
+	Vector3 Flux(1, 1, 1);
+
+	
+	bool end = false;
+
+	do{
+			Vector3 photonDir = rejectingSampling(center).normalize();
+			Ray photonRay(center, photonDir, 0);
+			end = trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
+			//std::cout << caustic_photons.size() << endl;
+	} while (end);
+	
+
+	
+
+
+	for (Photon p : global_photons) 
+	{
+		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+		m_global_map.store(vec, p);
+	}
+	m_global_map.balance();
+
+	for (Photon p : caustic_photons)
+	{
+		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+		m_caustics_map.store(vec, p);
+	}
+	//m_caustics_map.balance();
+
 }
 
 //*********************************************************************
@@ -147,10 +209,30 @@ void PhotonMapping::preprocess()
 // using k-nearest neighbors ('m_nb_photons') to define the bandwidth
 // of the kernel.
 //---------------------------------------------------------------------
+
+
+
+
 Vector3 PhotonMapping::shade(Intersection &it0)const
 {
+
 	Vector3 L(0);
 	Intersection it(it0);
+
+	int PHOTONS = 10;
+	Real rad = 2;
+	list<const KDTree<Photon, 3>::Node*> nodes;
+
+	Real position[3] = { it.get_position()[0], it.get_position()[1], it.get_position()[2] };
+	std::vector<Real> pos(position,position + sizeof(position)/sizeof(Real));
+
+	
+	int total = m_global_map.find(pos,3,&nodes);
+	
+	Vector3 flux(0.4, 0.4, 0.4);
+	Vector3 rada = (flux*total) / (M_PI*rad*rad);
+
+	return rada;
 
 	//**********************************************************************
 	// The following piece of code is included here for two reasons: first
