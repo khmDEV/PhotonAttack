@@ -172,8 +172,9 @@ void PhotonMapping::preprocess()
 	bool end = false;
 
 	do{
-			Vector3 photonDir = rejectingSampling(center).normalize();
-			Ray photonRay(center, photonDir, 0);
+			Vector3 photonDir = rejectingSampling(center).normalize(); //Vector3 [-1,1]
+			Ray photonRay(center, photonDir, 5);
+
 			end = trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
 			//std::cout << caustic_photons.size() << endl;
 	} while (end);
@@ -187,14 +188,21 @@ void PhotonMapping::preprocess()
 		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
 		m_global_map.store(vec, p);
 	}
-	m_global_map.balance();
+	if (global_photons.size()!=0)
+	{
+		m_global_map.balance();
+	}
 
 	for (Photon p : caustic_photons)
 	{
 		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
 		m_caustics_map.store(vec, p);
 	}
-	//m_caustics_map.balance();
+	if (caustic_photons.size()!=0)
+	{
+		m_caustics_map.balance();
+	}
+	
 
 }
 
@@ -220,19 +228,44 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	Intersection it(it0);
 
 	int PHOTONS = 10;
-	Real rad = 2;
+	Real rad = 0.2;
 	list<const KDTree<Photon, 3>::Node*> nodes;
 
 	Real position[3] = { it.get_position()[0], it.get_position()[1], it.get_position()[2] };
 	std::vector<Real> pos(position,position + sizeof(position)/sizeof(Real));
 
-	
-	int total = m_global_map.find(pos,3,&nodes);
-	
-	Vector3 flux(0.4, 0.4, 0.4);
-	Vector3 rada = (flux*total) / (M_PI*rad*rad);
+	int total = 0;
+	Vector3 flux(0.0, 0.0, 0.0);
+	if (!m_global_map.is_empty()){
+		total = m_global_map.find(pos, rad, &nodes);
 
-	return rada;
+		for (const KDTree<Photon, 3>::Node* n : nodes)
+		{
+			flux += n->data().flux;
+		}
+	}
+	nodes.clear();
+	Vector3 fluxIndi(0.0, 0.0, 0.0);
+	if (!m_caustics_map.is_empty()){
+		total = m_caustics_map.find(pos, rad, &nodes);
+
+		for (const KDTree<Photon, 3>::Node* n : nodes)
+		{
+			fluxIndi += n->data().flux;
+		}
+
+	}
+		
+	//std::cout << total<<std::endl;
+
+
+	//Luz Directa
+		
+	Vector3 rada = (flux) / (M_PI*rad*rad);
+
+	Vector3 radaIndi = (fluxIndi) / (M_PI*rad*rad);
+
+	return (rada + radaIndi).normalize();
 
 	//**********************************************************************
 	// The following piece of code is included here for two reasons: first
