@@ -4,9 +4,9 @@ Copyright (C) 2014 Diego Gutierrez (diegog@unizar.es)
 All rights reserved.
 
 This is an educational Ray Tracer developed for the course 'Informatica Grafica'
-(Computer Graphics) tought at Universidad de Zaragoza (Spain). As such, it does not 
+(Computer Graphics) tought at Universidad de Zaragoza (Spain). As such, it does not
 intend to be fast or general, but just to provide an educational tool for undergraduate
-students. 
+students.
 
 This software is provided as is, and any express or implied warranties are disclaimed.
 In no event shall copyright holders be liable for any damage.
@@ -35,37 +35,33 @@ In no event shall copyright holders be liable for any damage.
 // The function will return true when there are more photons (caustic
 // or diffuse) to be shot, and false otherwise.
 //---------------------------------------------------------------------
-bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p, 
-			   std::list<Photon> &global_photons, std::list<Photon> &caustic_photons, bool direct)
+bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
+	std::list<Photon> &global_photons, std::list<Photon> &caustic_photons, bool direct)
 {
 
 	//Check if max number of shots done...
-	if( ++m_nb_current_shots > m_max_nb_shots )
+	if (++m_nb_current_shots > m_max_nb_shots)
 	{
 		return false;
 	}
-	
+
 	// Compute irradiance photon's energy
 	Vector3 energy(p);
-	
+
 	Ray photon_ray(r);
 	photon_ray.shift();
 
 	bool is_caustic_particle = false;
 
 	//Iterate the path
-	int i = 0;
-	while(1)
+	while (1)
 	{
-		
 		// Throw ray and update current_it
 		Intersection it;
 		world->first_intersection(photon_ray, it);
 
-		if( !it.did_hit() )
+		if (!it.did_hit())
 			break;
-
-		//cout << it.intersected()->material()->is_delta() << endl;
 
 		//Check if has hit a delta material...
 		if (it.intersected()->material()->is_delta())
@@ -76,72 +72,69 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 		}
 		else if (photon_ray.get_level() > 0 || direct)
 		{
-			
-
 			//If non-delta material, store the photon!
-			if( is_caustic_particle )	
-			{			
+			if (is_caustic_particle)
+			{
 				//If caustic particle, store in caustics
-				if( caustic_photons.size() < m_nb_caustic_photons )
-					caustic_photons.push_back( Photon(it.get_position(), photon_ray.get_direction(), energy ));
+				if (caustic_photons.size() < m_nb_caustic_photons)
+					caustic_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
 			}
-			else						
+			else
 			{
 				//If non-caustic particle, store in global
-				if( global_photons.size() < m_nb_global_photons )
-					global_photons.push_back( Photon(it.get_position(), photon_ray.get_direction(), energy ));
+				if (global_photons.size() < m_nb_global_photons)
+					global_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
 			}
 			is_caustic_particle = false;
-		}	
-		
+		}
+
 		Real pdf;
 
 		Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
 		Real avg_surf_albedo = surf_albedo.avg();
 
-		Real epsilon2 = static_cast<Real>(rand())/static_cast<Real>(RAND_MAX);
+		Real epsilon2 = static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX);
 		while (epsilon2 < 0.)
-			epsilon2 = static_cast<Real>(rand())/static_cast<Real>(RAND_MAX);
-		
-		if (epsilon2 > avg_surf_albedo || photon_ray.get_level() > 20 ) 
+			epsilon2 = static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX);
+
+		if (epsilon2 > avg_surf_albedo || photon_ray.get_level() > 20)
 			break;
-			
+
 		// Random walk's next step
 		// Get sampled direction plus pdf, and update attenuation
-		it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf );
+		it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf);
 
 		// Shade...
 		energy = energy*surf_albedo;
-		if( !it.intersected()->material()->is_delta() )
-			energy *= dot_abs(it.get_normal(), photon_ray.get_direction())/3.14159;		
+		if (!it.intersected()->material()->is_delta())
+			energy *= dot_abs(it.get_normal(), photon_ray.get_direction()) / 3.14159;
 
-		energy = energy /(pdf*avg_surf_albedo);
+		energy = energy / (pdf*avg_surf_albedo);
 	}
-	
-	if( caustic_photons.size() == m_nb_caustic_photons && 
-		global_photons.size() == m_nb_global_photons )
+
+	if (caustic_photons.size() == m_nb_caustic_photons &&
+		global_photons.size() == m_nb_global_photons)
 	{
-		m_max_nb_shots = m_nb_current_shots-1;
+		m_max_nb_shots = m_nb_current_shots - 1;
 		return false;
 	}
 
 	return true;
 }
 
-Vector3 rejectingSampling(Vector3 foco){
-	Vector3 ramdomVector();
-	double x = (2 * (double)rand() / RAND_MAX) - 1;
-	double y = (2 * (double)rand() / RAND_MAX) - 1;
-	double z = (2 * (double)rand() / RAND_MAX) - 1;
+Vector3 rejectingSampling(){
+	Vector3 out;
 
-	Vector3 smp(x, y, z);
-	if (smp.length() <= 1){
-		return smp;
-	}
-	else{
-		return rejectingSampling(foco);
+	do
+	{
+		double x = (2 * (double)rand() / RAND_MAX) - 1;
+		double y = (2 * (double)rand() / RAND_MAX) - 1;
+		double z = (2 * (double)rand() / RAND_MAX) - 1;
+		out = (x, y, z);
 
-	}
+	} while (out.length() > 1);
+
+	return out;
 }
 
 //*********************************************************************
@@ -160,50 +153,56 @@ Vector3 rejectingSampling(Vector3 foco){
 //---------------------------------------------------------------------
 void PhotonMapping::preprocess()
 {
-	Vector3 center = world->light(0).get_position(); //Foco de luz
-	//world->light(0).get_incoming_direction();
+	bool end = false;
 
 	std::list<Photon> global_photons;
 	std::list<Photon> caustic_photons;
-
-	Vector3 Flux(1, 1, 1);
-
-	
-	bool end = false;
-
+	cout << world->nb_lights()<<endl;
 	do{
-			Vector3 photonDir = rejectingSampling(center).normalize(); //Vector3 [-1,1]
+		for (int i = 0; i < world->nb_lights() && !end; i++){
+			Vector3 center = world->light(i).get_position(); //Foco de luz
+			//world->light(0).get_incoming_direction();
+
+
+			Vector3 Flux(1, 1, 1);
+
+
+
+
+			Vector3 photonDir = rejectingSampling().normalize(); //Vector3 [-1,1]
 			Ray photonRay(center, photonDir, 5);
 
-			end = trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
+			end = !trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
 			//std::cout << caustic_photons.size() << endl;
-	} while (end);
-	
+		}
+
+		} while (!end);
+
+		for (Photon p : global_photons)
+		{
+			vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+			m_global_map.store(vec, p);
+		}
+		if (global_photons.size() != 0)
+		{
+			m_global_map.balance();
+		}
+
+		for (Photon p : caustic_photons)
+		{
+			vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+			m_caustics_map.store(vec, p);
+		}
+		if (caustic_photons.size() != 0)
+		{
+			m_caustics_map.balance();
+		}
+
+
+
+
 
 	
-
-
-	for (Photon p : global_photons) 
-	{
-		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
-		m_global_map.store(vec, p);
-	}
-	if (global_photons.size()!=0)
-	{
-		m_global_map.balance();
-	}
-
-	for (Photon p : caustic_photons)
-	{
-		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
-		m_caustics_map.store(vec, p);
-	}
-	if (caustic_photons.size()!=0)
-	{
-		m_caustics_map.balance();
-	}
-	
-
 }
 
 //*********************************************************************
@@ -219,7 +218,82 @@ void PhotonMapping::preprocess()
 //---------------------------------------------------------------------
 
 
+Vector3 PhotonMapping::calculatePhotons(Intersection &it0) const
+{
+	Intersection it(it0);
 
+	Real position[3] = { it.get_position()[0], it.get_position()[1], it.get_position()[2] };
+	const vector<Real> pos(position, position + sizeof(position) / sizeof(Real));
+
+	Vector3 rada(0.0, 0.0, 0.0);
+
+	if (!m_global_map.is_empty()){
+		vector<const KDTree<Photon, 3>::Node*> nodes;
+		Real max_distance;
+		m_global_map.find(pos, m_nb_photons, nodes, max_distance);
+
+		Vector3 flux(0.0, 0.0, 0.0);
+		for (const KDTree<Photon, 3>::Node* n : nodes)
+		{
+			flux += n->data().flux;
+		}
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / (M_PI*max_distance*max_distance);
+
+	}
+	Vector3 radaCaustic(0.0, 0.0, 0.0);
+
+	if (!m_caustics_map.is_empty()){
+		vector<const KDTree<Photon, 3>::Node*> nodes;
+		Real max_distance;
+
+		Vector3 flux(0.0, 0.0, 0.0);
+
+		m_caustics_map.find(pos, m_nb_photons, nodes, max_distance);
+
+		for (const KDTree<Photon, 3>::Node* n : nodes)
+		{
+			flux += n->data().flux;
+		}
+		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / (M_PI*max_distance*max_distance);
+	}
+
+	//std::cout << radaCaustic.length() << std::endl;		
+
+	Vector3 sum = rada + radaCaustic;
+
+	sum=sum.length() == 0 ? sum : sum.normalize();
+
+	return sum;
+}
+
+Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
+{
+	Intersection it(it0);
+	Ray photon_ray = it.get_ray();
+	Vector3 res(0);
+
+	Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
+
+	for (int i = 0; i < world->nb_lights(); i++)
+	{
+		if (world->light(i).is_visible(it.get_position())){
+			Real pdf;
+
+			Real avg_surf_albedo = surf_albedo.avg();
+
+			Vector3 energy = surf_albedo*avg_surf_albedo;
+			
+			res += energy;
+		}
+	}
+	res += surf_albedo*world->get_ambient();
+
+	res = res.length() == 0 ? res : res.normalize();
+
+	//cout << res.getComponent(0) << " , " << res.getComponent(1) << " , " << res.getComponent(2) << endl;
+
+	return res;
+}
 
 Vector3 PhotonMapping::shade(Intersection &it0)const
 {
@@ -227,45 +301,7 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	Vector3 L(0);
 	Intersection it(it0);
 
-	int PHOTONS = 10;
-	Real rad = 0.2;
-	list<const KDTree<Photon, 3>::Node*> nodes;
-
-	Real position[3] = { it.get_position()[0], it.get_position()[1], it.get_position()[2] };
-	std::vector<Real> pos(position,position + sizeof(position)/sizeof(Real));
-
-	int total = 0;
-	Vector3 flux(0.0, 0.0, 0.0);
-	if (!m_global_map.is_empty()){
-		total = m_global_map.find(pos, rad, &nodes);
-
-		for (const KDTree<Photon, 3>::Node* n : nodes)
-		{
-			flux += n->data().flux;
-		}
-	}
-	nodes.clear();
-	Vector3 fluxIndi(0.0, 0.0, 0.0);
-	if (!m_caustics_map.is_empty()){
-		total = m_caustics_map.find(pos, rad, &nodes);
-
-		for (const KDTree<Photon, 3>::Node* n : nodes)
-		{
-			fluxIndi += n->data().flux;
-		}
-
-	}
-		
-	//std::cout << total<<std::endl;
-
-
-	//Luz Directa
-		
-	Vector3 rada = (flux) / (M_PI*rad*rad);
-
-	Vector3 radaIndi = (fluxIndi) / (M_PI*rad*rad);
-
-	return (rada + radaIndi).normalize();
+	
 
 	//**********************************************************************
 	// The following piece of code is included here for two reasons: first
@@ -274,10 +310,36 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	// will need when doing the work. Goes without saying: remove the 
 	// pieces of code that you won't be using.
 	//
-	unsigned int debug_mode = 1;
-
+	unsigned int debug_mode = 0;
+	Vector3 dir;
+	Vector3 pho;
 	switch (debug_mode)
 	{
+	case 0:
+		// ----------------------------------------------------------------
+		// Photons
+		dir=calculateDirect(it);
+		
+		pho=calculatePhotons(it);
+
+		L = dir+pho;
+		
+
+			//cout << L.getComponent(0) << " , " << L.getComponent(1) << " , " << L.getComponent(2) << endl;
+			
+		
+		L = L.length() == 0 ? L : L.normalize();
+		break;
+	case 7:
+		// ----------------------------------------------------------------
+		// Photons
+		L = calculatePhotons(it);
+		break;
+	case 8:
+		// ----------------------------------------------------------------
+		// Photons
+		L = calculateDirect(it);
+		break;
 	case 1:
 		// ----------------------------------------------------------------
 		// Display Albedo Only
