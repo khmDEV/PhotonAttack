@@ -86,6 +86,7 @@ void RenderEngine::render(const std::string& name)
 
 	//for all pixels...
 		//trace a ray on each pixel (see function 'RenderEngine::trace_ray()')
+
 	for (int y=0;y<film->get_height(); ++y)
 	{	
 		if(!(y%10))

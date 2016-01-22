@@ -173,7 +173,7 @@ void PhotonMapping::preprocess()
 			Ray photonRay(center, photonDir, 5);
 
 			end = !trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
-			//std::cout << caustic_photons.size() << endl;
+			//std::cout << caustic_photons.size() << endl; 
 		}
 
 		} while (!end);
@@ -197,11 +197,6 @@ void PhotonMapping::preprocess()
 		{
 			m_caustics_map.balance();
 		}
-
-
-
-
-
 	
 }
 
@@ -218,7 +213,7 @@ void PhotonMapping::preprocess()
 //---------------------------------------------------------------------
 
 
-Vector3 PhotonMapping::calculatePhotons(Intersection &it0) const
+Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool caustic) const
 {
 	Intersection it(it0);
 
@@ -227,7 +222,7 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0) const
 
 	Vector3 rada(0.0, 0.0, 0.0);
 
-	if (!m_global_map.is_empty()){
+	if (!m_global_map.is_empty() && global){
 		vector<const KDTree<Photon, 3>::Node*> nodes;
 		Real max_distance;
 		m_global_map.find(pos, m_nb_photons, nodes, max_distance);
@@ -242,18 +237,19 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0) const
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
 
-	if (!m_caustics_map.is_empty()){
+	if (!m_caustics_map.is_empty() && caustic){
 		vector<const KDTree<Photon, 3>::Node*> nodes;
 		Real max_distance;
 
 		Vector3 flux(0.0, 0.0, 0.0);
 
 		m_caustics_map.find(pos, m_nb_photons, nodes, max_distance);
-
+		//cout << (M_PI*max_distance*max_distance) << endl;
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
 			flux += n->data().flux;
 		}
+		
 		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / (M_PI*max_distance*max_distance);
 	}
 
@@ -261,7 +257,7 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0) const
 
 	Vector3 sum = rada + radaCaustic;
 
-	sum=sum.length() == 0 ? sum : sum.normalize();
+	//sum=sum.length() == 0 ? sum : sum.normalize();
 
 	return sum;
 }
@@ -272,23 +268,41 @@ Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 	Ray photon_ray = it.get_ray();
 	Vector3 res(0);
 
-	Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
+	Real max=Vector3(1).length();
+	Real perc = max;
 
-	for (int i = 0; i < world->nb_lights(); i++)
+	for (int o = 0; o < 5 && perc>0.01; o++)
 	{
-		if (world->light(i).is_visible(it.get_position())){
-			Real pdf;
+		Real pdf;
 
-			Real avg_surf_albedo = surf_albedo.avg();
+		
+		Vector3 energy(0);
+		Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
+		Real avg_surf_albedo = surf_albedo.avg();
 
-			Vector3 energy = surf_albedo*avg_surf_albedo;
-			
-			res += energy;
+		for (int i = 0; i < world->nb_lights(); i++)
+		{
+			if (world->light(i).is_visible(it.get_position())
+				&& !it.intersected()->material()->is_delta()){
+				energy += surf_albedo;
+			}
+
 		}
-	}
-	res += surf_albedo*world->get_ambient();
+		
+		energy += world->get_ambient();
 
-	res = res.length() == 0 ? res : res.normalize();
+		energy = energy*((max-avg_surf_albedo)*perc);
+
+		res += energy;
+		perc = perc*(avg_surf_albedo);
+		
+		
+		it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf);
+		world->first_intersection(photon_ray, it);
+
+	}
+
+	//res = res.length() == 0 ? res : res.normalize();
 
 	//cout << res.getComponent(0) << " , " << res.getComponent(1) << " , " << res.getComponent(2) << endl;
 
@@ -319,13 +333,12 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 		// ----------------------------------------------------------------
 		// Photons
 		dir=calculateDirect(it);
-		
-		pho=calculatePhotons(it);
+		//dir = dir.length() == 0 ? dir : dir.normalize();
+
+		pho=calculatePhotons(it,false,true);
+		//pho = pho.length() == 0 ? pho : pho.normalize();
 
 		L = dir+pho;
-		
-
-			//cout << L.getComponent(0) << " , " << L.getComponent(1) << " , " << L.getComponent(2) << endl;
 			
 		
 		L = L.length() == 0 ? L : L.normalize();
@@ -333,12 +346,16 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	case 7:
 		// ----------------------------------------------------------------
 		// Photons
-		L = calculatePhotons(it);
+		L = calculatePhotons(it,true, true);
+		//L = L.length() == 0 ? L : L.normalize();
+
 		break;
 	case 8:
 		// ----------------------------------------------------------------
 		// Photons
 		L = calculateDirect(it);
+		L = L.length() == 0 ? L : L.normalize();
+
 		break;
 	case 1:
 		// ----------------------------------------------------------------

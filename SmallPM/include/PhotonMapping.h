@@ -88,7 +88,7 @@ public:
 	// Computes shading at the intersection 'it0' and returns the estimated
 	// radiance.
 	Vector3 shade(Intersection &it0)const;
-	Vector3 calculatePhotons(Intersection &it0) const;
+	Vector3 calculatePhotons(Intersection &it0, bool global, bool caustic) const;
 	Vector3 calculateDirect(Intersection &it0) const;
 
 };

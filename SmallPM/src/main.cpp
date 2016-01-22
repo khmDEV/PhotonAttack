@@ -144,6 +144,7 @@ int main(int argc, char* argv[])
 
 		Object3D* sphere2 = new Sphere(Vector3(-0.5,0.5,.5), 0.3, mirror);
 		w->add_object(sphere2);
+
 	}
 	break;
 	case 2:
