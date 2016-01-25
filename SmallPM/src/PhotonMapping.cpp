@@ -1,4 +1,4 @@
-/*********************************************************************************
+﻿/*********************************************************************************
 Copyright (C) 2014 Adrian Jarabo (ajarabo@unizar.es)
 Copyright (C) 2014 Diego Gutierrez (diegog@unizar.es)
 All rights reserved.
@@ -217,8 +217,11 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 {
 	Intersection it(it0);
 
+	Real K = 1.0;
+
 	Real position[3] = { it.get_position()[0], it.get_position()[1], it.get_position()[2] };
 	const vector<Real> pos(position, position + sizeof(position) / sizeof(Real));
+	Vector3 kd = it.intersected()->material()->get_albedo(it);
 
 	Vector3 rada(0.0, 0.0, 0.0);
 
@@ -227,12 +230,20 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 		Real max_distance;
 		m_global_map.find(pos, m_nb_photons, nodes, max_distance);
 
+
 		Vector3 flux(0.0, 0.0, 0.0);
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
-			flux += n->data().flux;
+			Photon pothon = n->data();
+
+			float distance = (pothon.position - it.get_position()).length2();
+
+			flux += pothon.flux * (1 - (distance / max_distance*K));
+
 		}
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / (M_PI*max_distance*max_distance);
+		Real area = (M_PI*max_distance*max_distance);
+		Real cone = (1 / ((1 - (2 / (3*K)))*area) );
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone *(kd);
 
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
@@ -247,13 +258,22 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 		//cout << (M_PI*max_distance*max_distance) << endl;
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
-			flux += n->data().flux;
+			Photon pothon = n->data();
+
+			float distance = (pothon.position - it.get_position()).length2();
+
+			flux += pothon.flux * (1 - (distance / max_distance*K));
 		}
 		
-		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / (M_PI*max_distance*max_distance);
+		Real area = (M_PI*max_distance*max_distance);
+		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
+
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone *(kd);
 	}
 
 	//std::cout << radaCaustic.length() << std::endl;		
+	//rada = rada.length() == 0 ? rada : rada.normalize();
+	//radaCaustic = radaCaustic.length() == 0 ? radaCaustic : radaCaustic.normalize();
 
 	Vector3 sum = rada + radaCaustic;
 
@@ -265,42 +285,39 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 {
 	Intersection it(it0);
-	Ray photon_ray = it.get_ray();
 	Vector3 res(0);
 
-	Real max=Vector3(1).length();
-	Real perc = max;
+	Real pdf;
 
-	for (int o = 0; o < 5 && perc>0.01; o++)
+	for (int o = 0; o < 5; o++)
 	{
-		Real pdf;
+		Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
+		Ray photon_ray = it.get_ray();
 
 		
-		Vector3 energy(0);
-		Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
-		Real avg_surf_albedo = surf_albedo.avg();
-
-		for (int i = 0; i < world->nb_lights(); i++)
+		if (it.intersected()->material()->is_delta())
 		{
-			if (world->light(i).is_visible(it.get_position())
-				&& !it.intersected()->material()->is_delta()){
-				energy += surf_albedo;
-			}
+			it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf);
+			photon_ray.shift();
+			world->first_intersection(photon_ray, it);
+		}else{
+			for (int i = 0; i < world->nb_lights(); i++)
+			{
+				if (world->light(i).is_visible(it.get_position())){
+					Vector3 lightDirection = normalize(world->light(i).get_position() - it.get_position());
+					Real angle = dot(it.get_normal(), lightDirection);
+					angle = angle < 0 ? 0 : angle;
+					Vector3 light = world->light(i).get_incoming_light(it.get_position())*(angle);
+					res = light*surf_albedo;
+				}
 
+			}
+			break;
 		}
 		
-		energy += world->get_ambient();
-
-		energy = energy*((max-avg_surf_albedo)*perc);
-
-		res += energy;
-		perc = perc*(avg_surf_albedo);
-		
-		
-		it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf);
-		world->first_intersection(photon_ray, it);
-
 	}
+
+	res += world->get_ambient();
 
 	//res = res.length() == 0 ? res : res.normalize();
 
@@ -333,10 +350,10 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 		// ----------------------------------------------------------------
 		// Photons
 		dir=calculateDirect(it);
-		//dir = dir.length() == 0 ? dir : dir.normalize();
+		dir = dir.length() == 0 ? dir : dir.normalize();
 
-		pho=calculatePhotons(it,false,true);
-		//pho = pho.length() == 0 ? pho : pho.normalize();
+		pho=calculatePhotons(it,true,true);
+		pho = pho.length() == 0 ? pho : pho.normalize();
 
 		L = dir+pho;
 			
@@ -346,8 +363,8 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	case 7:
 		// ----------------------------------------------------------------
 		// Photons
-		L = calculatePhotons(it,true, true);
-		//L = L.length() == 0 ? L : L.normalize();
+		L = calculatePhotons(it,true, false);
+		L = L.length() == 0 ? L : L.normalize();
 
 		break;
 	case 8:
