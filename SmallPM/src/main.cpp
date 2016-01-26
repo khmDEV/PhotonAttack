@@ -169,6 +169,11 @@ int main(int argc, char* argv[])
 		w->add_object(bunny);
 	}
 	break;
+	case 4:
+	{
+		
+	}
+	break;
 	default:
 	{
 		Object3D* sphere1 = new Sphere(Vector3(0.5,0.3,.5), 0.3, white);

@@ -166,11 +166,8 @@ void PhotonMapping::preprocess()
 
 			Vector3 Flux(1, 1, 1);
 
-
-
-
 			Vector3 photonDir = rejectingSampling().normalize(); //Vector3 [-1,1]
-			Ray photonRay(center, photonDir, 5);
+			Ray photonRay(center, photonDir, 10);
 
 			end = !trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
 			//std::cout << caustic_photons.size() << endl; 
@@ -316,7 +313,6 @@ Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 		}
 		
 	}
-
 	res += world->get_ambient();
 
 	//res = res.length() == 0 ? res : res.normalize();
@@ -341,37 +337,42 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	// will need when doing the work. Goes without saying: remove the 
 	// pieces of code that you won't be using.
 	//
+
 	unsigned int debug_mode = 0;
-	Vector3 dir;
-	Vector3 pho;
+	Vector3 directa;
+	Vector3 global;
+	Vector3 caustica;
+
 	switch (debug_mode)
 	{
 	case 0:
 		// ----------------------------------------------------------------
 		// Photons
-		dir=calculateDirect(it);
-		dir = dir.length() == 0 ? dir : dir.normalize();
+		directa = calculateDirect(it);
 
-		pho=calculatePhotons(it,true,true);
-		pho = pho.length() == 0 ? pho : pho.normalize();
+		global = calculatePhotons(it, true, false);
+		caustica = calculatePhotons(it, false, true);
 
-		L = dir+pho;
-			
-		
+	
+		L =  global + caustica;
 		L = L.length() == 0 ? L : L.normalize();
+
+		L += directa;
+
+		//L = L.length() == 0 ? L : L.normalize();
+		
 		break;
 	case 7:
 		// ----------------------------------------------------------------
 		// Photons
-		L = calculatePhotons(it,true, false);
-		L = L.length() == 0 ? L : L.normalize();
+		L = calculatePhotons(it,true, true);
+
 
 		break;
 	case 8:
 		// ----------------------------------------------------------------
 		// Photons
 		L = calculateDirect(it);
-		L = L.length() == 0 ? L : L.normalize();
 
 		break;
 	case 1:
