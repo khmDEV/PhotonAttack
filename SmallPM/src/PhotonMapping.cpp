@@ -77,13 +77,13 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 			{
 				//If caustic particle, store in caustics
 				if (caustic_photons.size() < m_nb_caustic_photons)
-					caustic_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
+					caustic_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy / m_nb_caustic_photons));
 			}
 			else
 			{
 				//If non-caustic particle, store in global
 				if (global_photons.size() < m_nb_global_photons)
-					global_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
+					global_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy / m_nb_global_photons));
 			}
 			is_caustic_particle = false;
 		}
@@ -232,15 +232,15 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
 			Photon pothon = n->data();
+			float distance = (pothon.position - it.get_position()).length();
+			distance = distance < 0 ? -distance : distance;
 
-			float distance = (pothon.position - it.get_position()).length2();
-
-			flux += pothon.flux * (1 - (distance / max_distance*K));
-
+			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
 		}
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3*K)))*area) );
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone *(kd);
+
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
 
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
@@ -252,31 +252,24 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 		Vector3 flux(0.0, 0.0, 0.0);
 
 		m_caustics_map.find(pos, m_nb_photons, nodes, max_distance);
-		//cout << (M_PI*max_distance*max_distance) << endl;
+
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
 			Photon pothon = n->data();
+			float distance = (pothon.position - it.get_position()).length();
+			distance = distance < 0 ? -distance : distance;
 
-			float distance = (pothon.position - it.get_position()).length2();
-
-			flux += pothon.flux * (1 - (distance / max_distance*K));
+			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
 		}
-		
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
 
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone *(kd);
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone ;
 	}
 
-	//std::cout << radaCaustic.length() << std::endl;		
-	//rada = rada.length() == 0 ? rada : rada.normalize();
-	//radaCaustic = radaCaustic.length() == 0 ? radaCaustic : radaCaustic.normalize();
+	Vector3 res = rada + radaCaustic;
 
-	Vector3 sum = rada + radaCaustic;
-
-	//sum=sum.length() == 0 ? sum : sum.normalize();
-
-	return sum;
+	return res;
 }
 
 Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
@@ -313,11 +306,10 @@ Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 		}
 		
 	}
-	res += world->get_ambient();
+	//res += world->get_ambient();
 
 	//res = res.length() == 0 ? res : res.normalize();
 
-	//cout << res.getComponent(0) << " , " << res.getComponent(1) << " , " << res.getComponent(2) << endl;
 
 	return res;
 }
@@ -351,13 +343,11 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 		directa = calculateDirect(it);
 
 		global = calculatePhotons(it, true, false);
+
 		caustica = calculatePhotons(it, false, true);
 
 	
-		L =  global + caustica;
-		L = L.length() == 0 ? L : L.normalize();
-
-		L += directa;
+		L = directa + global + caustica;
 
 		//L = L.length() == 0 ? L : L.normalize();
 		
