@@ -264,7 +264,9 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
 
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone ;
+
+		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
+
 	}
 
 	Vector3 res = rada + radaCaustic;
