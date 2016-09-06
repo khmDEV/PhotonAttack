@@ -77,13 +77,13 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 			{
 				//If caustic particle, store in caustics
 				if (caustic_photons.size() < m_nb_caustic_photons)
-					caustic_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy / m_nb_caustic_photons));
+					caustic_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
 			}
 			else
 			{
 				//If non-caustic particle, store in global
 				if (global_photons.size() < m_nb_global_photons)
-					global_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy / m_nb_global_photons));
+					global_photons.push_back(Photon(it.get_position(), photon_ray.get_direction(), energy));
 			}
 			is_caustic_particle = false;
 		}
@@ -158,20 +158,27 @@ void PhotonMapping::preprocess()
 	std::list<Photon> global_photons;
 	std::list<Photon> caustic_photons;
 	cout << world->nb_lights()<<endl;
+
+	Vector3 center = world->light(0).get_position(); //Foco de luz
+	//world->light(0).get_incoming_direction();
+
+	Vector3 Luztotal = world->light(0).get_intensities();
+
+	Vector3 Flux(1, 1, 1);
+
+	Vector3 FluxNorm = Flux * (Luztotal/m_nb_photons);
+	std::cout << FluxNorm.getComponent(0) << endl;
+	
 	do{
-		for (int i = 0; i < world->nb_lights() && !end; i++){
-			Vector3 center = world->light(i).get_position(); //Foco de luz
-			//world->light(0).get_incoming_direction();
 
-
-			Vector3 Flux(1, 1, 1);
+			
 
 			Vector3 photonDir = rejectingSampling().normalize(); //Vector3 [-1,1]
-			Ray photonRay(center, photonDir, 10);
+			Ray photonRay(center, photonDir, 3);
 
-			end = !trace_ray(photonRay, Flux, global_photons, caustic_photons, false);
+			end = !trace_ray(photonRay, FluxNorm, global_photons, caustic_photons, false);
 			//std::cout << caustic_photons.size() << endl; 
-		}
+		
 
 		} while (!end);
 
