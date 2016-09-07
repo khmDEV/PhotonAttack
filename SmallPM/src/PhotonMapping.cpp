@@ -166,7 +166,7 @@ void PhotonMapping::preprocess()
 
 	Vector3 Flux(1, 1, 1);
 
-	Vector3 FluxNorm = Flux * (Luztotal / (m_nb_caustic_photons + m_nb_global_photons));
+	Vector3 FluxNorm = Flux * (Luztotal/m_nb_photons);
 	std::cout << FluxNorm.getComponent(0) << endl;
 	
 	do{
