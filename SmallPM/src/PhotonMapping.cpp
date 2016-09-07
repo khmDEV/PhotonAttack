@@ -242,12 +242,12 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux ;
+			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
 		}
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3*K)))*area) );
 
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)/ area;
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
 
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
@@ -266,13 +266,13 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux ;
+			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
 		}
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
 
 
-		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)/ area;
+		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
 
 	}
 
