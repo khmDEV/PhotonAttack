@@ -242,12 +242,12 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
+			flux += pothon.flux;// *kd* (1 - (distance / (max_distance*K)));
 		}
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3*K)))*area) );
 
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;//* cone;
 
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
@@ -266,13 +266,13 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux *kd* (1 - (distance / (max_distance*K)));
+			flux += pothon.flux;// *kd* (1 - (distance / (max_distance*K)));
 		}
 		Real area = (M_PI*max_distance*max_distance);
 		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
 
 
-		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux)* cone;
+		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;// *cone;
 
 	}
 
@@ -351,9 +351,9 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 		// Photons
 		directa = calculateDirect(it);
 
-		global = calculatePhotons(it, true, false);
+		//global = calculatePhotons(it, true, false);
 
-		caustica = calculatePhotons(it, false, true);
+		//caustica = calculatePhotons(it, false, true);
 
 	
 		L = directa + global + caustica;

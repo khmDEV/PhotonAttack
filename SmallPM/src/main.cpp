@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
 	char *name_file = NULL, *default_name_file = "name_file";
 	name_file = default_name_file;
 
-	unsigned int scene = 1;
+	unsigned int scene = 5;
 
 	unsigned int photons_global = 10000, 
 				 photons_caustic = 10000, 
@@ -95,9 +95,10 @@ int main(int argc, char* argv[])
 	BSDF* glass = new Transmissive(w, 1.5);
 	BSDF* mirror = new Specular(w);
 
-	BSDF* white = new Lambertian(w, Vector3(.85,.85,.85));
+	BSDF* white = new Lambertian(w, Vector3(1,1,1));
 	BSDF* red = new Lambertian(w, Vector3(.85,.085,.085));
-	BSDF* green = new Lambertian(w, Vector3(.085,.85,.085));
+	BSDF* green = new Lambertian(w, Vector3(.085, .85, .085));
+	BSDF* blue = new Lambertian(w, Vector3(.085, .085, .85));
 
 	Triangle* floor1 = new Triangle( Vector3(-1.5,0,1.5),Vector3(1.5,0.,1.5),
 									 Vector3(-1.5,0.,-1.5), white);
@@ -126,13 +127,23 @@ int main(int argc, char* argv[])
 	Triangle* left2 = new Triangle(Vector3(-1,0,-1.5), Vector3(-1,2.5,1.5),
 		Vector3(-1,-.5,1.5), red);
 	w->add_object(left2); 
-
-	Object3D* right1 = new Triangle(Vector3(1,2.5,1.5), Vector3(1,2.5,-1.5), 
-		Vector3(1,-.5,-1.5), green);
-	w->add_object(right1); 
-	Object3D* right2 = new Triangle(Vector3(1,2.5,1.5), Vector3(1,-.5,-1.5), 
-		Vector3(1,-.5,1.5), green);
-	w->add_object(right2); 
+	if (scene == 4){
+		Object3D* right1 = new Triangle(Vector3(1, 2.5, 1.5), Vector3(1, 2.5, -1.5),
+			Vector3(1, -.5, -1.5), blue);
+		w->add_object(right1);
+		Object3D* right2 = new Triangle(Vector3(1, 2.5, 1.5), Vector3(1, -.5, -1.5),
+			Vector3(1, -.5, 1.5), blue);
+		w->add_object(right2);
+	}
+	else{
+		Object3D* right1 = new Triangle(Vector3(1, 2.5, 1.5), Vector3(1, 2.5, -1.5),
+			Vector3(1, -.5, -1.5), green);
+		w->add_object(right1);
+		Object3D* right2 = new Triangle(Vector3(1, 2.5, 1.5), Vector3(1, -.5, -1.5),
+			Vector3(1, -.5, 1.5), green);
+		w->add_object(right2);
+	}
+	
 
 	
 	switch(scene)
@@ -161,9 +172,6 @@ int main(int argc, char* argv[])
 	break;
 	case 3:
 	{	
-		Object3D* sphere1 = new Sphere(Vector3(0.5,0.3,.5), 0.3, glass);
-		w->add_object(sphere1);
-
 
 		Mesh* bunny = new Mesh("data\\bunny.obj", mirror);
 		w->add_object(bunny);
@@ -171,7 +179,15 @@ int main(int argc, char* argv[])
 	break;
 	case 4:
 	{
-		
+		Object3D* sphere1 = new Sphere(Vector3(0.45, 0.3, .0), 0.3, glass);
+		w->add_object(sphere1);
+
+		Object3D* sphere2 = new Sphere(Vector3(-0.5, 0.3, -0.5), 0.3, mirror);
+		w->add_object(sphere2);
+	}
+	break;
+	case 5:
+	{
 	}
 	break;
 	default:
@@ -183,7 +199,7 @@ int main(int argc, char* argv[])
 		w->add_object(sphere2);
 	}
 	}
-	LightSource* ls = new PointLightSource(w, Vector3(0,1.9,0), Vector3(5,5,5));
+	LightSource* ls = new PointLightSource(w, Vector3(0,1.9,0), Vector3(1,1,1));
 	w->add_light(ls);
 
 	w->fix();
