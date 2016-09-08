@@ -97,7 +97,7 @@ bool PhotonMapping::trace_ray(const Ray& r, const Vector3 &p,
 		while (epsilon2 < 0.)
 			epsilon2 = static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX);
 
-		if (epsilon2 > avg_surf_albedo || photon_ray.get_level() > 20)
+		if (epsilon2 > avg_surf_albedo || photon_ray.get_level() > 5)
 			break;
 
 		// Random walk's next step
@@ -127,10 +127,10 @@ Vector3 rejectingSampling(){
 
 	do
 	{
-		double x = (2 * (double)rand() / RAND_MAX) - 1;
-		double y = (2 * (double)rand() / RAND_MAX) - 1;
-		double z = (2 * (double)rand() / RAND_MAX) - 1;
-		out = (x, y, z);
+		double x = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
+		double y = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
+		double z = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
+		out = Vector3(x, y, z);
 
 	} while (out.length() > 1);
 
@@ -173,7 +173,7 @@ void PhotonMapping::preprocess()
 
 			
 
-			Vector3 photonDir = rejectingSampling().normalize(); //Vector3 [-1,1]
+			Vector3 photonDir = rejectingSampling(); //Vector3 [-1,1]
 			Ray photonRay(center, photonDir, 3);
 
 			end = !trace_ray(photonRay, FluxNorm, global_photons, caustic_photons, false);
@@ -351,9 +351,9 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 		// Photons
 		directa = calculateDirect(it);
 
-		//global = calculatePhotons(it, true, false);
+		global = calculatePhotons(it, true, false);
 
-		//caustica = calculatePhotons(it, false, true);
+		caustica = calculatePhotons(it, false, true);
 
 	
 		L = directa + global + caustica;

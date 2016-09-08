@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
 	char *name_file = NULL, *default_name_file = "name_file";
 	name_file = default_name_file;
 
-	unsigned int scene = 5;
+	unsigned int scene = 1;
 
 	unsigned int photons_global = 10000, 
 				 photons_caustic = 10000, 
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
 		w->add_object(sphere2);
 	}
 	}
-	LightSource* ls = new PointLightSource(w, Vector3(0,1.9,0), Vector3(1,1,1));
+	LightSource* ls = new PointLightSource(w, Vector3(0,1.9,0), Vector3(3,3,3));
 	w->add_light(ls);
 
 	w->fix();
