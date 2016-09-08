@@ -127,9 +127,9 @@ Vector3 rejectingSampling(){
 
 	do
 	{
-		double x = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
-		double y = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
-		double z = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX))-1.0;
+		double x = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX)) - 1.0;
+		double y = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX)) - 1.0;
+		double z = (2.0 * static_cast<Real>(rand()) / static_cast<Real>(RAND_MAX)) - 1.0;
 		out = Vector3(x, y, z);
 
 	} while (out.length() > 1);
@@ -156,52 +156,51 @@ void PhotonMapping::preprocess()
 	bool end = false;
 
 	std::list<Photon> global_photons;
-	std::list<Photon> caustic_photons;
-	cout << world->nb_lights()<<endl;
+	std::list<Photon> caustic_photons;;
 
-	Vector3 center = world->light(0).get_position(); //Foco de luz
-	//world->light(0).get_incoming_direction();
-
+	/*Cargamos los valores de la fuente de luz*/
+	Vector3 center = world->light(0).get_position();
 	Vector3 Luztotal = world->light(0).get_intensities();
 
 	Vector3 Flux(1, 1, 1);
 
+	/*Se normaliza el flujo de cada foton con respecto a la fuenta de luz*/
 	Vector3 FluxNorm = Flux * (Luztotal / (m_nb_caustic_photons + m_nb_global_photons));
-	std::cout << FluxNorm.getComponent(0) << endl;
-	
+
 	do{
 
-			
+		/*Se genera un rayo aleatorio*/
+		Vector3 photonDir = rejectingSampling(); //Vector3 [-1,1]
+		Ray photonRay(center, photonDir, 3);
 
-			Vector3 photonDir = rejectingSampling(); //Vector3 [-1,1]
-			Ray photonRay(center, photonDir, 3);
+		/*Se lanza el el rayo siguiendo el algorimo normal del trayazor de rayos*/
+		end = !trace_ray(photonRay, FluxNorm, global_photons, caustic_photons, false);
 
-			end = !trace_ray(photonRay, FluxNorm, global_photons, caustic_photons, false);
-			//std::cout << caustic_photons.size() << endl; 
-		
 
-		} while (!end);
+	} while (!end);
 
-		for (Photon p : global_photons)
-		{
-			vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
-			m_global_map.store(vec, p);
-		}
-		if (global_photons.size() != 0)
-		{
-			m_global_map.balance();
-		}
 
-		for (Photon p : caustic_photons)
-		{
-			vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
-			m_caustics_map.store(vec, p);
-		}
-		if (caustic_photons.size() != 0)
-		{
-			m_caustics_map.balance();
-		}
-	
+	/*Se pueblan los KdTrees*/
+	for (Photon p : global_photons)
+	{
+		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+		m_global_map.store(vec, p);
+	}
+	if (global_photons.size() != 0)
+	{
+		m_global_map.balance();
+	}
+
+	for (Photon p : caustic_photons)
+	{
+		vector<Real> vec(p.position.data, p.position.data + sizeof(p.position.data) / sizeof(float));
+		m_caustics_map.store(vec, p);
+	}
+	if (caustic_photons.size() != 0)
+	{
+		m_caustics_map.balance();
+	}
+
 }
 
 //*********************************************************************
@@ -236,18 +235,21 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 
 
 		Vector3 flux(0.0, 0.0, 0.0);
+
+		/*Se suma su contribuccion al flujo*/
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
 			Photon pothon = n->data();
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux;// *kd* (1 - (distance / (max_distance*K)));
+			flux += pothon.flux;
 		}
+		
 		Real area = (M_PI*max_distance*max_distance);
-		Real cone = (1 / ((1 - (2 / (3*K)))*area) );
 
-		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;//* cone;
+		/*Division por el area cubierta*/
+		rada = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;
 
 	}
 	Vector3 radaCaustic(0.0, 0.0, 0.0);
@@ -260,19 +262,20 @@ Vector3 PhotonMapping::calculatePhotons(Intersection &it0, bool global, bool cau
 
 		m_caustics_map.find(pos, m_nb_photons, nodes, max_distance);
 
+		/*Se suma su contribuccion al flujo*/
 		for (const KDTree<Photon, 3>::Node* n : nodes)
 		{
 			Photon pothon = n->data();
 			float distance = (pothon.position - it.get_position()).length();
 			distance = distance < 0 ? -distance : distance;
 
-			flux += pothon.flux;// *kd* (1 - (distance / (max_distance*K)));
+			flux += pothon.flux;
 		}
+
 		Real area = (M_PI*max_distance*max_distance);
-		Real cone = (1 / ((1 - (2 / (3 * K)))*area));
 
-
-		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;// *cone;
+		/*Division por el area cubierta*/
+		radaCaustic = flux.length() == 0 ? Vector3(0.0, 0.0, 0.0) : (flux) / area;
 
 	}
 
@@ -293,13 +296,14 @@ Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 		Vector3 surf_albedo = it.intersected()->material()->get_albedo(it);
 		Ray photon_ray = it.get_ray();
 
-		
+
 		if (it.intersected()->material()->is_delta())
 		{
 			it.intersected()->material()->get_outgoing_sample_ray(it, photon_ray, pdf);
 			photon_ray.shift();
 			world->first_intersection(photon_ray, it);
-		}else{
+		}
+		else{
 			for (int i = 0; i < world->nb_lights(); i++)
 			{
 				if (world->light(i).is_visible(it.get_position())){
@@ -313,12 +317,8 @@ Vector3 PhotonMapping::calculateDirect(Intersection &it0) const
 			}
 			break;
 		}
-		
+
 	}
-	//res += world->get_ambient();
-
-	//res = res.length() == 0 ? res : res.normalize();
-
 
 	return res;
 }
@@ -329,7 +329,7 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 	Vector3 L(0);
 	Intersection it(it0);
 
-	
+
 
 	//**********************************************************************
 	// The following piece of code is included here for two reasons: first
@@ -355,16 +355,16 @@ Vector3 PhotonMapping::shade(Intersection &it0)const
 
 		caustica = calculatePhotons(it, false, true);
 
-	
+
 		L = directa + global + caustica;
 
 		//L = L.length() == 0 ? L : L.normalize();
-		
+
 		break;
 	case 7:
 		// ----------------------------------------------------------------
 		// Photons
-		L = calculatePhotons(it,true, true);
+		L = calculatePhotons(it, true, true);
 
 
 		break;
